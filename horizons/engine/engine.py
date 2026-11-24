@@ -468,12 +468,17 @@ class Fife:
 				return locale_code
 		try:
 			default_locale, default_encoding = locale.getdefaultlocale()
-			return default_locale.split('_')[0]
+			language = default_locale.split('_')[0]
 		except (ValueError, AttributeError):
 			# OS X sometimes returns 'UTF-8' as locale, which is a ValueError.
 			# If no locale is set at all, the split will fail, which is an AttributeError.
 			# Use 'EN' as fallback in both cases since we cannot reasonably detect the locale.
 			return "en"
+		# Keep the region if we have a translation for it (pt_BR, zh_TW), otherwise
+		# e.g. pt_BR users get the European Portuguese scenarios preselected.
+		if default_locale in LANGUAGENAMES:
+			return default_locale
+		return language
 
 	def run(self):
 		assert self._got_inited
