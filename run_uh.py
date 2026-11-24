@@ -207,9 +207,10 @@ def exithandler(exitcode, signum, frame):
 
 def setup_streams():
 	"""Ignore output to stderr and stdout if writing to them is not possible."""
-	if sys.__stderr__.fileno() < 0:
+	# Started without a console (pythonw.exe on Windows) both streams are None.
+	if sys.__stderr__ is None or sys.__stderr__.fileno() < 0:
 		sys.stderr = open(os.devnull, 'w')
-	if sys.__stdout__.fileno() < 0:
+	if sys.__stdout__ is None or sys.__stdout__.fileno() < 0:
 		sys.stdout = open(os.devnull, 'w')
 
 
