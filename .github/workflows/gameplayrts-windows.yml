@@ -1,0 +1,272 @@
+#
+# .github/workflows/gameplayrts-windows.yml
+#
+# Pipeline do pacote portátil para Windows (ramo gameplayrts).
+# A cada mudança: compila o motor FIFE no commit fixado (com cache), roda os
+# testes unitários, monta o pacote, extrai numa pasta limpa e ABRE o jogo
+# (renderização por software com Mesa) até ele terminar sozinho.
+# Numa tag win-v*, cria a release em RASCUNHO com o pacote, o SHA256 e o wheel
+# do motor. Publicar a release é um passo manual.
+#
+name: Pacote Windows (gameplayrts)
+
+on:
+  push:
+    branches: [gameplayrts]
+    tags: ['win-v*']
+  pull_request:
+    branches: [gameplayrts]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Motor: mesmo commit do FIFE e da fifechan usados no pacote testado à mão.
+  FIFE_COMMIT: 580e17d82d05097a4d6002f75b840681f17426ed
+  FIFECHAN_COMMIT: b1a4b63ee8eaaaf16188c48916522fd2f445258e
+  PYTHON_VERSION: '3.13'
+  MESA_VERSION: '26.2.7'
+
+jobs:
+
+  motor:
+    name: Motor FIFE (wheel cp313 win_amd64)
+    runs-on: windows-2025-vs2026
+    env:
+      VCPKG_DISABLE_METRICS: 1
+    steps:
+      - name: Cache do wheel do motor
+        id: wheel
+        uses: actions/cache@v6
+        with:
+          path: wheelhouse
+          key: libfife-cp313-win_amd64-${{ env.FIFE_COMMIT }}-${{ env.FIFECHAN_COMMIT }}
+
+      - name: Baixar o FIFE no commit fixado
+        if: steps.wheel.outputs.cache-hit != 'true'
+        uses: actions/checkout@v7
+        with:
+          repository: fifengine/fifengine
+          ref: ${{ env.FIFE_COMMIT }}
+          path: fifengine
+
+      - name: Cache do vcpkg
+        if: steps.wheel.outputs.cache-hit != 'true'
+        uses: actions/cache@v6
+        with:
+          path: ~\AppData\Local\vcpkg\archives
+          key: vcpkg-archives-${{ hashFiles('fifengine/vcpkg.json') }}
+          restore-keys: vcpkg-archives-
+
+      - name: Ferramentas (ninja, vcpkg na última tag)
+        if: steps.wheel.outputs.cache-hit != 'true'
+        shell: cmd
+        run: |
+          choco install ninja --no-progress || exit /b 1
+          cd /d "%VCPKG_INSTALLATION_ROOT%"
+          rem o vcpkg do runner pode ter edicoes locais; o manifesto do FIFE fixa o baseline
+          git fetch origin --tags --force || exit /b 1
+          git checkout master
+          git reset --hard origin/master
+          git clean -fdx
+          for /f "delims=" %%i in ('git tag --sort=-v:refname') do (
+            set LATEST=%%i
+            goto :found
+          )
+          :found
+          git checkout %LATEST% || exit /b 1
+          call bootstrap-vcpkg.bat || exit /b 1
+
+      - name: Dependências do motor (vcpkg + fifechan + swig)
+        if: steps.wheel.outputs.cache-hit != 'true'
+        shell: cmd
+        working-directory: fifengine
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
+          "%VCPKG_INSTALLATION_ROOT%\vcpkg" install --triplet x64-windows --x-install-root "%CD%\vcpkg_installed" || exit /b 1
+          cmake -S dependencies -B out\fife-dependencies\x64-windows\build -G Ninja ^
+            -DCMAKE_BUILD_TYPE=Release ^
+            -DCMAKE_TOOLCHAIN_FILE="%VCPKG_INSTALLATION_ROOT%\scripts\buildsystems\vcpkg.cmake" ^
+            -DVCPKG_TARGET_TRIPLET=x64-windows ^
+            -DVCPKG_INSTALLED_DIR="%CD%\vcpkg_installed" ^
+            -DFIFECHAN_VERSION=%FIFECHAN_COMMIT% || exit /b 1
+          cmake --build out\fife-dependencies\x64-windows\build --parallel || exit /b 1
+
+      - name: Python para o cibuildwheel
+        if: steps.wheel.outputs.cache-hit != 'true'
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Variáveis do cibuildwheel (caminhos com /)
+        if: steps.wheel.outputs.cache-hit != 'true'
+        shell: pwsh
+        working-directory: fifengine
+        run: |
+          $fife  = (Get-Location).Path -replace '\\', '/'
+          $vcpkg = $env:VCPKG_INSTALLATION_ROOT -replace '\\', '/'
+          $deps  = "$fife/out/fife-dependencies/x64-windows"
+          $inst  = "$fife/vcpkg_installed"
+          $settings = @(
+            'cmake.define.CMAKE_BUILD_TYPE=Release',
+            "cmake.define.CMAKE_PREFIX_PATH=$deps/install;$inst/x64-windows",
+            "cmake.define.CMAKE_TOOLCHAIN_FILE=$vcpkg/scripts/buildsystems/vcpkg.cmake",
+            'cmake.define.VCPKG_TARGET_TRIPLET=x64-windows',
+            "cmake.define.VCPKG_INSTALLED_DIR=$inst"
+          ) -join ' '
+          @(
+            'CIBW_BUILD=cp313-win_amd64',
+            "CIBW_ENVIRONMENT=VCPKG_ROOT=$vcpkg VCPKG_TARGET_TRIPLET=x64-windows VCPKG_INSTALLED_DIR=$inst DEPS_DIR=$deps CMAKE_BUILD_PARALLEL_LEVEL=4",
+            "CIBW_CONFIG_SETTINGS=$settings",
+            "CIBW_REPAIR_WHEEL_COMMAND_WINDOWS=set PATH=$deps/install/bin;$inst/x64-windows/bin;%PATH% && python -m delvewheel repair {wheel} --wheel-dir {dest_dir} --ignore-existing"
+          ) | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          python -m pip install --upgrade pip cibuildwheel
+
+      - name: Compilar o wheel (cibuildwheel + delvewheel)
+        if: steps.wheel.outputs.cache-hit != 'true'
+        shell: cmd
+        working-directory: fifengine
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
+          cibuildwheel --output-dir ..\wheelhouse || exit /b 1
+
+      - name: Conferir o wheel
+        shell: pwsh
+        run: |
+          Get-ChildItem wheelhouse\*.whl | ForEach-Object { "{0}  {1}" -f (Get-FileHash $_ -Algorithm SHA256).Hash.ToLower(), $_.Name }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: libfife-wheel
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+
+  testes:
+    name: Testes unitários (Windows)
+    needs: motor
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/download-artifact@v7
+        with:
+          name: libfife-wheel
+          path: wheelhouse
+      - name: Dependências
+        shell: pwsh
+        run: python -m pip install (Get-Item wheelhouse\*.whl).FullName -r packaging\windows\requirements.txt pytest pytest-mock
+      - name: Testes do idioma, das traduções e de inicialização
+        # test_main.py tem 5 testes que comparam caminhos com "/" e falham no Windows
+        # também no master oficial; ficam de fora daqui até serem corrigidos.
+        run: python -m pytest -q -p no:cacheprovider tests/unittests/test_engine_locale.py tests/unittests/test_i18n.py
+
+  pacote:
+    name: Montar o pacote portátil
+    needs: motor
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/download-artifact@v7
+        with:
+          name: libfife-wheel
+          path: wheelhouse
+      - name: Nome da versão
+        id: versao
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/win-v* ]]; then echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT";
+          else echo "tag=dev-${GITHUB_SHA::9}" >> "$GITHUB_OUTPUT"; fi
+      - name: Montar
+        shell: pwsh
+        run: |
+          python -m pip install polib==1.2.0
+          python packaging\windows\build_package.py --tag ${{ steps.versao.outputs.tag }} `
+            --fife-wheel (Get-Item wheelhouse\*.whl).FullName --fife-commit $env:FIFE_COMMIT `
+            --out dist --cache dist\cache
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pacote-windows
+          path: |
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error
+          compression-level: 0
+
+  jogo:
+    name: Abrir o jogo a partir do pacote
+    needs: pacote
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: pacote-windows
+          path: dist
+      - name: Conferir o SHA256 e extrair numa pasta limpa
+        shell: pwsh
+        run: |
+          $zip = Get-Item dist\*.zip
+          $esperado = (Get-Content "$($zip.FullName).sha256").Split(' ')[0]
+          $real = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          if ($real -ne $esperado) { throw "SHA256 nao bate: $real != $esperado" }
+          Expand-Archive $zip C:\jogo
+          $dir = (Get-ChildItem C:\jogo -Directory)[0].FullName
+          "UH_DIR=$dir" >> $env:GITHUB_ENV
+      - name: Bibliotecas carregam no Python embutido
+        shell: pwsh
+        run: '& "$env:UH_DIR\python\python.exe" -c "import fife, tkinter, PIL, yaml, greenlet, polib; print(''ok'')"'
+      - name: OpenGL por software (Mesa, só no runner; não vai no pacote)
+        uses: ssciwr/setup-mesa-dist-win@v3
+        with:
+          version: ${{ env.MESA_VERSION }}
+          build-type: release-mingw
+      - name: Jogar 300 ciclos num mapa aleatório
+        shell: pwsh
+        timeout-minutes: 20
+        env:
+          UH_USER_DIR: C:\uh-usuario
+          GALLIUM_DRIVER: llvmpipe
+        run: |
+          Set-Location "$env:UH_DIR\unknown-horizons"
+          & "$env:UH_DIR\python\python.exe" run_uh.py --start-random-map --max-ticks=300 --no-audio 2>&1 | Tee-Object C:\uh-saida.txt
+          $codigo = $LASTEXITCODE
+          if ($codigo -ne 0) { throw "o jogo saiu com codigo $codigo" }
+          if (Select-String -Path C:\uh-saida.txt -Pattern 'Traceback' -Quiet) { throw 'Traceback na saida do jogo' }
+      - name: Guardar os logs se falhar
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: logs-do-jogo
+          path: |
+            C:\uh-saida.txt
+            C:\uh-usuario\log
+
+  release:
+    name: Release em rascunho
+    if: startsWith(github.ref, 'refs/tags/win-v')
+    needs: [testes, pacote, jogo]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          path: artefatos
+          merge-multiple: true
+      - name: Criar a release em rascunho
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notas="packaging/windows/NOTAS-${GITHUB_REF_NAME}.md"
+          test -f "$notas" || { echo "faltam as notas: $notas"; exit 1; }
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
+            --title "Unknown Horizons para Windows ($GITHUB_REF_NAME)" \
+            --notes-file "$notas" \
+            artefatos/*.zip artefatos/*.sha256 artefatos/*.whl
