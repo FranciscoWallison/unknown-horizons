@@ -1,0 +1,23 @@
+LICENÇAS DOS COMPONENTES DESTE PACOTE ({tag})
+
+Unknown Horizons (pasta unknown-horizons)
+  Código: GNU GPL versão 2 ou posterior. Arte e áudio próprios: CC BY-SA 3.0.
+  Arquivos de terceiros e suas licenças: unknown-horizons\doc\LICENSE
+  Fonte deste pacote: https://github.com/FranciscoWallison/unknown-horizons/tree/{tag}
+  (commit {commit})
+
+FIFE, o motor do jogo (python\Lib\site-packages\fife)
+  GNU LGPL 2.1 ou posterior. Texto em
+  python\Lib\site-packages\libfife-0.5.0.dist-info\licenses\LICENSE.md
+  Wheel: {fife_wheel}
+  SHA256 do wheel: {fife_wheel_sha256}
+  Commit do FIFE: {fife_commit}
+  Fonte: https://github.com/fifengine/fifengine
+
+Python {python} (pasta python)
+  Python Software Foundation License: python\LICENSE.txt
+  Inclui Tcl/Tk (licença própria, permissiva): python\tcl\tk8.6\license.terms
+
+Bibliotecas Python (python\Lib\site-packages, cada uma com sua licença na
+respectiva pasta .dist-info): Pillow (MIT-CMU), PyYAML (MIT), greenlet (MIT e
+PSF 2.0), polib (MIT), crayons (MIT), colorama (BSD), distro (Apache 2.0).

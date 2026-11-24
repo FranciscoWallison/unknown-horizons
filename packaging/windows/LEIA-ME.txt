@@ -1,0 +1,43 @@
+UNKNOWN HORIZONS PARA WINDOWS ({tag})
+Pacote portátil feito pelo Gameplay RTS (gameplayrts.com.br)
+
+Unknown Horizons é um jogo de estratégia econômica em tempo real, no estilo da
+série Anno: você funda uma colônia numa ilha, monta as cadeias de produção e faz
+a população crescer. É feito pela comunidade desde 2008, com código e arte livres.
+
+COMO JOGAR
+1. Extraia o zip inteiro numa pasta sua (Documentos, Área de Trabalho, Jogos).
+   Não use "Arquivos de Programas": o jogo precisa gravar na própria pasta.
+2. Dê dois cliques em "Jogar Unknown Horizons.bat".
+3. Na primeira vez, o jogo prepara as texturas e mostra a janela
+   "Generating atlases!". Isso leva cerca de um minuto e só acontece uma vez.
+
+Não precisa instalar nada: o Python e o motor gráfico já vêm dentro da pasta.
+O jogo abre no idioma do Windows. Para trocar: Configurações > Idioma.
+
+ONDE FICAM SEUS DADOS
+Saves, configurações e logs: Documentos\My Games\unknown-horizons
+
+SE ALGO DER ERRADO
+Abra "Unknown Horizons (depurar).bat". Ele mostra as mensagens do jogo numa
+janela e grava um log em Documentos\My Games\unknown-horizons\log.
+Relate o problema em: https://github.com/FranciscoWallison/unknown-horizons/issues
+
+O QUE ESTE PACOTE ENTREGA
+- O código atual do Unknown Horizons (2026), que não tinha versão para Windows.
+  O último instalador oficial é o 2019.1, de 32 bits.
+- Versão de 64 bits com o motor FIFE 0.5 (SDL3) e Python {python} embutido.
+- Interface e tutorial em português do Brasil, escolhidos sozinhos pelo idioma
+  do Windows (correção nossa: antes o tutorial abria em português de Portugal).
+- Lista de idiomas mais larga no menu de cenários, para "Português Br." aparecer
+  inteiro (correção nossa).
+- O jogo pode ser aberto sem janela de console (correção nossa).
+
+O QUE AINDA NÃO TEM
+- Multiplayer: a biblioteca de rede (pyenet) ainda não existe pronta para
+  Python 3.13 no Windows. O modo de um jogador funciona completo.
+
+CÓDIGO-FONTE E LICENÇAS
+Este pacote foi gerado do commit {commit} do ramo gameplayrts:
+https://github.com/FranciscoWallison/unknown-horizons/tree/{tag}
+Licenças de cada componente em LICENCAS.txt.
