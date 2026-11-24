@@ -10,8 +10,8 @@
 	</VBox>
 	<Spacer />
 	<VBox name="language_hbox">
-		<Label text="Select a language:"  name="select_lang_lbl" wrap_text="1" fixed_size="140,20" />
-		<ScrollArea fixed_size="140,200" name="lang_list_area">
+		<Label text="Select a language:"  name="select_lang_lbl" wrap_text="1" fixed_size="170,20" />
+		<ScrollArea fixed_size="170,200" name="lang_list_area">
 			<ListBox name="uni_langlist" is_focusable="0" />
 		</ScrollArea>
 	</VBox>
