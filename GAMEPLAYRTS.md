@@ -17,7 +17,7 @@ estratégia de código aberto.
 
 ## O que o pacote entrega
 
-Um zip portátil de 64 bits (cerca de 285 MB, 400 MB extraído), sem instalador e sem exigir nada
+Um zip portátil de 64 bits (cerca de 285 MB, 375 MB extraído), sem instalador e sem exigir nada
 instalado na máquina:
 
 | Pasta ou arquivo | Conteúdo |
