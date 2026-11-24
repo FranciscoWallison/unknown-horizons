@@ -7,7 +7,7 @@ extraia e jogue, sem instalar nada.
 1. Baixe `UnknownHorizons-win-v1-win64.zip` e extraia numa pasta sua (Documentos, Área de Trabalho,
    Jogos). Não use "Arquivos de Programas": o jogo grava na própria pasta.
 2. Dê dois cliques em **Jogar Unknown Horizons.bat**.
-3. Na primeira vez, aparece a janela "Generating atlases!" por cerca de um minuto, enquanto o jogo
+3. Na primeira vez, aparece a janela "Generating atlases!" por um ou dois minutos, enquanto o jogo
    prepara as texturas. Só acontece uma vez.
 
 O jogo abre no idioma do Windows. Saves e configurações ficam em `Documentos\My Games\unknown-horizons`.

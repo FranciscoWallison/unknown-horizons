@@ -28,7 +28,7 @@ instalado na máquina:
 | `unknown-horizons/` | o jogo, com as traduções já compiladas (46 idiomas, pt-BR 100%) |
 | `LEIA-ME.txt`, `LICENCAS.txt` | como jogar e a licença de cada componente |
 
-Na primeira execução o jogo monta os atlas de texturas (cerca de um minuto, com a janela
+Na primeira execução o jogo monta os atlas de texturas (um ou dois minutos, com a janela
 "Generating atlases!"). Saves e configurações ficam em `Documentos\My Games\unknown-horizons`.
 
 **Ainda não tem multiplayer:** a biblioteca de rede `pyenet` não existe pronta para Python 3.13 no
