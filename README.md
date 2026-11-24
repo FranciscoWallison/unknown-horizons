@@ -1,3 +1,8 @@
+> **Ramo `gameplayrts` deste fork:** pacote portátil de 64 bits para Windows com o código atual do
+> jogo, mais correções. O que é, o que o pacote entrega e como a pipeline funciona:
+> [GAMEPLAYRTS.md](GAMEPLAYRTS.md). Downloads em
+> [Releases](https://github.com/FranciscoWallison/unknown-horizons/releases).
+
 [![Unknown-Horizons](/content/gfx/uh.png)](http://unknown-horizons.org/)
 ============================================================
 
